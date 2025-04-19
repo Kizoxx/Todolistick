@@ -1,4 +1,4 @@
-package Handlers
+package handlers // Исправлен регистр: Handlers → handlers
 
 import (
 	"Todolistick/models"
@@ -42,7 +42,12 @@ func (h *TodoHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 func (h *TodoHandler) Add(w http.ResponseWriter, r *http.Request) {
 	var todo models.Todo
-	json.NewDecoder(r.Body).Decode(&todo)
+	defer r.Body.Close()
+	err := json.NewDecoder(r.Body).Decode(&todo)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
 
 	addedTodo, err := h.Storage.Add(todo)
 	if err != nil {
@@ -53,10 +58,31 @@ func (h *TodoHandler) Add(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TodoHandler) Update(w http.ResponseWriter, r *http.Request) {
-	var todo models.Todo
-	json.NewDecoder(r.Body).Decode(&todo)
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
 
-	err := h.Storage.Update(todo)
+	var todo models.Todo
+	defer r.Body.Close()
+	err = json.NewDecoder(r.Body).Decode(&todo)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if todo.ID != 0 && todo.ID != id {
+		http.Error(w, "ID in URL does not match ID in body", http.StatusBadRequest)
+		return
+	}
+
+	if todo.ID == 0 {
+		todo.ID = id
+	}
+
+	err = h.Storage.Update(todo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
