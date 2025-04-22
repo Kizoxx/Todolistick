@@ -3,13 +3,14 @@ package main
 import (
 	"Todolistick/handlers"
 	"Todolistick/storage"
-	"github.com/gorilla/mux"
+	"fmt"
 	"log"
 	"net/http"
+
+	"github.com/gorilla/mux"
 )
 
 func main() {
-	// Подключение к PostgreSQL
 	connStr := "user=postgres password=kizoDB dbname=todolist host=localhost sslmode=disable"
 	dbStorage, err := storage.NewPostgresStorage(connStr)
 	if err != nil {
@@ -25,7 +26,7 @@ func main() {
 		log.Printf("Current todos in database: %v", todos)
 	}
 
-	// Создаём роутер и хендлер
+	// Настройка маршрутов
 	r := mux.NewRouter()
 	handler := handlers.TodoHandler{Storage: dbStorage}
 
@@ -36,8 +37,6 @@ func main() {
 	r.HandleFunc("/todos/{id}", handler.Update).Methods("PUT")
 	r.HandleFunc("/todos/{id}", handler.Delete).Methods("DELETE")
 
-	log.Println("Server is running on port 8080")
-	if err := http.ListenAndServe(":8080", r); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
-	}
+	fmt.Println("Server is running on port 8080...")
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
