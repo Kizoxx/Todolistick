@@ -3,40 +3,38 @@ package main
 import (
 	"Todolistick/handlers"
 	"Todolistick/storage"
-	"fmt"
+	"github.com/gorilla/mux"
 	"log"
 	"net/http"
-
-	"github.com/gorilla/mux"
 )
 
 func main() {
-	connStr := "user=postgres password=kizoDB dbname=todolist host=localhost sslmode=disable"
-	dbStorage, err := storage.NewPostgresStorage(connStr)
+	// Создаём роутер
+	r := mux.NewRouter()
+
+	// Подключаемся к БД
+	dbStorage, err := storage.NewPostgresStorage("user=postgres password=kizoDB dbname=todolist sslmode=disable")
 	if err != nil {
-		log.Fatalf("Failed to connect to PostgreSQL: %v", err)
+		log.Fatalf("Ошибка подключения к базе данных: %v", err)
 	}
 	defer dbStorage.Close()
 
-	// Логируем все записи из базы данных (для отладки)
-	todos, err := dbStorage.GetAll()
-	if err != nil {
-		log.Printf("Failed to get all todos: %v", err)
-	} else {
-		log.Printf("Current todos in database: %v", todos)
-	}
-
-	// Настройка маршрутов
-	r := mux.NewRouter()
+	// Создаём обработчики
 	handler := handlers.TodoHandler{Storage: dbStorage}
 
 	// Регистрируем маршруты
 	r.HandleFunc("/todos", handler.GetAll).Methods("GET")
-	r.HandleFunc("/todos/{id}", handler.GetByID).Methods("GET")
+	r.HandleFunc("/todos/{id:[0-9]+}", handler.GetByID).Methods("GET")
 	r.HandleFunc("/todos", handler.Add).Methods("POST")
-	r.HandleFunc("/todos/{id}", handler.Update).Methods("PUT")
-	r.HandleFunc("/todos/{id}", handler.Delete).Methods("DELETE")
+	r.HandleFunc("/todos/{id:[0-9]+}", handler.Update).Methods("PUT")
+	r.HandleFunc("/todos/{id:[0-9]+}", handler.Delete).Methods("DELETE")
 
-	fmt.Println("Server is running on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	// Запуск сервера
+	log.Println("Сервер запущен на порту 8080")
+
+	err = http.ListenAndServe(":8080", r)
+	if err != nil {
+		log.Fatalf("Ошибка запуска сервера: %v", err)
+	}
+
 }
