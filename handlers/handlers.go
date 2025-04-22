@@ -1,7 +1,8 @@
-package handlers // Исправлен регистр: Handlers → handlers
+package handlers
 
 import (
 	"Todolistick/models"
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -9,20 +10,23 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// TodoStorage определяет интерфейс для работы с хранилищем тудушек.
 type TodoStorage interface {
-	GetAll() ([]models.Todo, error)
-	GetByID(id int) (models.Todo, error)
-	Add(todo models.Todo) (models.Todo, error)
-	Update(todo models.Todo) error
-	Delete(id int) error
+	GetAll(ctx context.Context) ([]models.Todo, error)
+	GetByID(ctx context.Context, id int) (models.Todo, error)
+	Add(ctx context.Context, todo models.Todo) (models.Todo, error)
+	Update(ctx context.Context, todo models.Todo) error
+	Delete(ctx context.Context, id int) error
 }
 
+// TodoHandler обрабатывает HTTP-запросы и использует хранилище.
 type TodoHandler struct {
 	Storage TodoStorage
 }
 
+// Получить все туду
 func (h *TodoHandler) GetAll(w http.ResponseWriter, r *http.Request) {
-	todos, err := h.Storage.GetAll()
+	todos, err := h.Storage.GetAll(r.Context())
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -30,6 +34,7 @@ func (h *TodoHandler) GetAll(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(todos)
 }
 
+// Получить туду по ID
 func (h *TodoHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -38,7 +43,7 @@ func (h *TodoHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	todo, err := h.Storage.GetByID(id)
+	todo, err := h.Storage.GetByID(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -47,6 +52,7 @@ func (h *TodoHandler) GetByID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(todo)
 }
 
+// Добавить новую туду
 func (h *TodoHandler) Add(w http.ResponseWriter, r *http.Request) {
 	var todo models.Todo
 	defer r.Body.Close()
@@ -56,7 +62,7 @@ func (h *TodoHandler) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	addedTodo, err := h.Storage.Add(todo)
+	addedTodo, err := h.Storage.Add(r.Context(), todo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -64,6 +70,7 @@ func (h *TodoHandler) Add(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(addedTodo)
 }
 
+// Обновить существующую туду
 func (h *TodoHandler) Update(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -89,7 +96,7 @@ func (h *TodoHandler) Update(w http.ResponseWriter, r *http.Request) {
 		todo.ID = id
 	}
 
-	err = h.Storage.Update(todo)
+	err = h.Storage.Update(r.Context(), todo)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -98,6 +105,7 @@ func (h *TodoHandler) Update(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(todo)
 }
 
+// Удалить туду по ID
 func (h *TodoHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -106,7 +114,7 @@ func (h *TodoHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.Storage.Delete(id)
+	err = h.Storage.Delete(r.Context(), id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
